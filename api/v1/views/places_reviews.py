@@ -5,7 +5,7 @@ New view Review that handles REST API actions
 from models import storage
 from flask import jsonify, request, abort, make_response
 from api.v1.views import app_views
-from models.city import Review
+from models.review import Review
 from models.place import Place
 from models.user import User
 
