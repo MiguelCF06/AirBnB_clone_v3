@@ -42,14 +42,19 @@ class DBStorage:
 
     def all(self, cls=None):
         """query on the current database session"""
-        new_dict = {}
-        for clss in classes:
-            if cls is None or cls is classes[clss] or cls is clss:
-                objs = self.__session.query(classes[clss]).all()
-                for obj in objs:
-                    key = obj.__class__.__name__ + '.' + obj.id
-                    new_dict[key] = obj
-        return (new_dict)
+        if not self.__session:
+            self.reload()
+        objects = {}
+        if type(cls) == str:
+            cls = classes.get(cls, None)
+        if cls:
+            for obj in self.__session.query(cls):
+                objects[obj.__class__.__name__ + "." + obj.id] = obj
+        else:
+            for cls in classes.values():
+                for obj in self.__session.query(cls):
+                    objects[obj.__class__.__name__ + '.' + obj.id] = obj
+        return objects
 
     def new(self, obj):
         """add the object to the current database session"""
@@ -61,15 +66,17 @@ class DBStorage:
 
     def delete(self, obj=None):
         """delete from the current database session obj if not None"""
+        if not self.__session:
+            self.reload()
         if obj is not None:
             self.__session.delete(obj)
 
     def reload(self):
         """reloads data from the database"""
+        session_factory = sessionmaker(bind=self.__engine,
+                                       expire_on_commit=False)
         Base.metadata.create_all(self.__engine)
-        sess_factory = sessionmaker(bind=self.__engine, expire_on_commit=False)
-        Session = scoped_session(sess_factory)
-        self.__session = Session
+        self.__session = scoped_session(session_factory)
 
     def close(self):
         """call remove() method on the private session attribute"""
@@ -77,20 +84,21 @@ class DBStorage:
 
     def get(self, cls, id):
         """Retrieves one object based on the ID"""
-        if cls not in models.classes.keys():
+        if cls is not None and type(cls) is str and id is not None and\
+           type(id) is str and cls in classes:
+            cls = classes[cls]
+            result = self.__session.query(cls).filter(cls.id == id).first()
+            return result
+        else:
             return None
-        obj_list = models.storage.all(cls).values()
-        for obj in obj_list:
-            if obj.id == id:
-                return obj
-        return None
 
     def count(self, cls=None):
         """Gets the count of objects"""
-        if cls is None:
-            return len(models.storage.all())
-        elif cls in models.classes.keys():
-            return len(models.storage.all(cls))
-        else:
-            return 0
-
+        counter = 0
+        if type(cls) == str and cls in classes:
+            cls = classes[cls]
+            counter = self.__session.query(cls).count()
+        elif cls is None:
+            for cls in classes.values():
+                counter += self.__session.query(cls).count()
+        return counter
