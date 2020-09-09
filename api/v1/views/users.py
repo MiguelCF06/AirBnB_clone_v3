@@ -47,7 +47,7 @@ def post_user():
     content = request.get_json(silent=True)
     error_message = ""
     if type(content) is dict:
-        if "name" in content.keys():
+        if "mail" in content.keys():
             user = User(**content)
             storage.new(user)
             storage.save()
@@ -55,7 +55,9 @@ def post_user():
             response.status_code = 201
             return response
         else:
-            error_message = "Missing name"
+            error_message = "Missing email"
+        if "password" not in content.keys():
+            error_message = "Missing password"
     else:
         error_message = "Not a JSON"
     response = jsonify({"error": error_message})
