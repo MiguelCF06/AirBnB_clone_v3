@@ -3,7 +3,7 @@
 View users that handles all default REST API actions
 """
 from models import storage
-from flask import jsonify, request, abort
+from flask import jsonify, request, abort, make_response
 from api.v1.views import app_views
 from models.user import User
 
@@ -44,25 +44,15 @@ def delete_user(user_id):
 @app_views.route("/users/", methods=["POST"], strict_slashes=False)
 def post_user():
     """Post an User object"""
-    content = request.get_json(silent=True)
-    error_message = ""
-    if type(content) is dict:
-        if "mail" in content.keys():
-            user = User(**content)
-            storage.new(user)
-            storage.save()
-            response = jsonify(user.to_dict())
-            response.status_code = 201
-            return response
-        else:
-            error_message = "Missing email"
-        if "password" not in content.keys():
-            error_message = "Missing password"
-    else:
-        error_message = "Not a JSON"
-    response = jsonify({"error": error_message})
-    response.status_code = 400
-    return response
+    if not request.get_json():
+        return make_response(jsonify({'error': 'Not a JSON'}), 400)
+    if 'email' not in request.get_json():
+        return make_response(jsonify({'error': 'Missing email'}), 400)
+    if 'password' not in request.get_json():
+        return make_response(jsonify({'error': 'Missing password'}), 400)
+    user = User(**request.get_json())
+    user.save()
+    return make_response(jsonify(user.to_dict()), 201)
 
 
 @app_views.route('/users/<string:user_id>', methods=['PUT'],
